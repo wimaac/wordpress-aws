@@ -1,0 +1,428 @@
+{
+    "AWSTemplateFormatVersion":"2010-09-09",
+    "Description":"AWS CloudFormation Template for Basic VPC with public / private subnets",
+    "Parameters" : {
+        "ClusterName" : {
+            "Type" : "String",
+            "Default" : "WordpressDemo",
+            "Description": "Wordpress Server Name"
+        },
+        "DiskSize" : {
+            "Type" : "String",
+            "Default" : "30",
+            "Description": "Disk Size of Wordpress Server"
+        },
+        "myIP" : {
+            "Type" : "String",
+            "Default" : "127.0.0.0",
+            "Description": "What is your current IP for SSH?"
+        }
+    },
+    "Resources":{
+        "VPC" : {
+            "Type" : "AWS::EC2::VPC",
+            "Properties" : {
+                "CidrBlock" : "172.16.0.0/16",
+                "EnableDnsSupport" : "true",
+                "EnableDnsHostnames" : "true",
+                "Tags" : [ 
+                    { "Key" : "StackId", "Value" : { "Ref" : "AWS::StackId" } }, 
+                    { "Key" : "Name", "Value" : "MJ Demo" }
+                ]
+            }
+        },
+        "InternetGateway" : {
+            "Type" : "AWS::EC2::InternetGateway",
+            "Properties" : {
+                "Tags" : [ 
+                    { "Key" : "StackId", "Value" : { "Ref" : "AWS::StackId" } },
+                    { "Key" : "Name", "Value" : "Demo IGW" }
+                ]
+            }
+        },
+        "AttachIGWToVPC" : {
+            "Type" : "AWS::EC2::VPCGatewayAttachment",
+            "Properties" : {
+                "InternetGatewayId" : { "Ref" : "InternetGateway" },
+                "VpcId" : { "Ref" : "VPC" }
+            }
+        },
+        "PubSubnet" : {
+            "Type" : "AWS::EC2::Subnet",
+            "Properties" : {
+                "CidrBlock" : "172.16.1.0/24",
+                "VpcId" : { "Ref" : "VPC" },
+                "MapPublicIpOnLaunch" :"True",
+                "Tags" : [ 
+                    { "Key" : "StackId", "Value" : { "Ref" : "AWS::StackId" } }, 
+                    { "Key" : "Name", "Value" : "Demo Public Subnet" } 
+                ]
+            }
+        },
+        "PubRouteTable" : {
+            "Type" : "AWS::EC2::RouteTable",
+            "Properties" : {
+                "VpcId" : { "Ref" : "VPC" },
+                "Tags" : [ 
+                    { "Key" : "StackId",  "Value" : { "Ref" : "AWS::StackId" } }, 
+                    { "Key" : "Name", "Value" : "Demo Public Subnet Route Table" }
+                ]
+            }
+        },
+        "PubSubnetRouteTableAssociation" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties" : {
+                "RouteTableId" : { "Ref" : "PubRouteTable" },
+                "SubnetId" : { "Ref" : "PubSubnet" }
+            }
+        },
+        "PubNetworkAcl" : {
+            "Type" : "AWS::EC2::NetworkAcl",
+            "Properties" : {
+                "VpcId" : { "Ref" : "VPC" },
+                "Tags" : [ 
+                    { "Key" : "StackId", "Value" : { "Ref" : "AWS::StackId" } }, 
+                    { "Key" : "Name", "Value" : "Public Subnet NACL" } 
+                ]
+            }
+        },
+        "PubInboundNetworkAclEntry" : {
+            "Type" : "AWS::EC2::NetworkAclEntry",
+            "Properties" : {
+                "CidrBlock" : "0.0.0.0/0",
+                "Egress" : "false",
+                "NetworkAclId" : { "Ref" : "PubNetworkAcl" },
+                "Protocol" : "-1",
+                "RuleAction" : "allow",
+                "RuleNumber" : "100",
+                "PortRange" : { "From" : "0", "To" : "65535" }
+            }
+        },
+        "PubOutboundNetworkAclEntry" : {
+            "Type" : "AWS::EC2::NetworkAclEntry",
+            "Properties" : {
+                "CidrBlock" : "0.0.0.0/0",
+                "Egress" : "true",
+                "NetworkAclId" : { "Ref" : "PubNetworkAcl" },
+                "Protocol" : "-1",
+                "RuleAction" : "allow",
+                "RuleNumber" : "100",
+                "PortRange" : { "From" : "0", "To" : "65535" }
+            }
+        },
+        "PubSubnetNetworkAclAssociation" : {
+            "Type" : "AWS::EC2::SubnetNetworkAclAssociation",
+            "Properties" : {
+                "SubnetId" : { "Ref" : "PubSubnet" },
+                "NetworkAclId" : { "Ref" : "PubNetworkAcl" }
+            }
+        },
+        "PubSubnetInternetRoute" : {
+            "Type" : "AWS::EC2::Route",
+            "Properties" : {
+                "DestinationCidrBlock" : "0.0.0.0/0",
+                "GatewayId" : { "Ref" : "InternetGateway" },
+                "RouteTableId" : { "Ref" : "PubRouteTable" }
+            }
+        },
+        "PrivSubnet" : {
+            "Type" : "AWS::EC2::Subnet",
+            "Properties" : {
+                "CidrBlock" : "172.16.2.0/24",
+                "VpcId" : { "Ref" : "VPC" },
+                "MapPublicIpOnLaunch" :"True",
+                "Tags" : [ 
+                    { "Key" : "StackId", "Value" : { "Ref" : "AWS::StackId" } }, 
+                    { "Key" : "Name", "Value" : "Private Subnet" } 
+                ]
+            }
+        },
+        "PrivRouteTable" : {
+            "Type" : "AWS::EC2::RouteTable",
+            "Properties" : {
+                "VpcId" : { "Ref" : "VPC" },
+                "Tags" : [ 
+                    { "Key" : "StackId", "Value" : { "Ref" : "AWS::StackId" } }, 
+                    { "Key" : "Name", "Value" : "Private Subnet Route Table" } 
+                ]
+            }
+        },
+        "PrivSubnetRouteTableAssociation" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties" : {
+                "RouteTableId" : { "Ref" : "PrivRouteTable" },
+                "SubnetId" : { "Ref" : "PrivSubnet" }
+            }
+        },
+        "PrivNetworkAcl" : {
+            "Type" : "AWS::EC2::NetworkAcl",
+            "Properties" : {
+                "VpcId" : { "Ref" : "VPC" },
+                "Tags" : [ 
+                    { "Key" : "StackId", "Value" : { "Ref" : "AWS::StackId" } }, 
+                    { "Key" : "Name", "Value" : "Private Subnet NACL" } 
+                ]
+            }
+        },
+        "PrivInboundNetworkAclEntry" : {
+            "Type" : "AWS::EC2::NetworkAclEntry",
+            "Properties" : {
+                "CidrBlock" : "0.0.0.0/0",
+                "Egress" : "false",
+                "NetworkAclId" : { "Ref" : "PrivNetworkAcl" },
+                "Protocol" : "-1",
+                "RuleAction" : "allow",
+                "RuleNumber" : "100",
+                "PortRange" : { "From" : "0", "To" : "65535" }
+            }
+        },
+        "PrivOutboundNetworkAclEntry" : {
+            "Type" : "AWS::EC2::NetworkAclEntry",
+            "Properties" : {
+                "CidrBlock" : "0.0.0.0/0",
+                "Egress" : "true",
+                "NetworkAclId" : { "Ref" : "PrivNetworkAcl" },
+                "Protocol" : "-1",
+                "RuleAction" : "allow",
+                "RuleNumber" : "100",
+                "PortRange" : { "From" : "0", "To" : "65535" }
+            }
+        },
+        "PrivSubnetNetworkAclAssociation" : {
+            "Type" : "AWS::EC2::SubnetNetworkAclAssociation",
+            "Properties" : {
+                "SubnetId" : { "Ref" : "PrivSubnet" },
+                "NetworkAclId" : { "Ref" : "PrivNetworkAcl" }
+            }
+        },
+        "PrivSubnetInternetRoute" : {
+            "Type" : "AWS::EC2::Route",
+            "Properties" : {
+                "DestinationCidrBlock" : "0.0.0.0/0",
+                "GatewayId" : { "Ref" : "InternetGateway" },
+                "RouteTableId" : { "Ref" : "PrivRouteTable" }
+            }
+        },
+        "WebDMZSG" : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "GroupDescription" : "WebDMZ for Demo",
+                "VpcId" : { "Ref" : "VPC" },
+                "Tags" : [
+                    { "Key" : "StackId", "Value" : { "Ref" : "AWS::StackId" } },
+                    { "Key" : "Name", "Value" : "PubServerSG" }
+                ],
+                "SecurityGroupIngress" : [
+                    {   
+                        "CidrIp" : "0.0.0.0/0",
+                        "ToPort" : "80",
+                        "FromPort" : "80",
+                        "IpProtocol" : "tcp"
+                    },
+                    {   
+                        "CidrIp" : "0.0.0.0/0",
+                        "ToPort" : "443",
+                        "FromPort" : "443",
+                        "IpProtocol" : "tcp"
+                    }
+                ]
+            }
+        },
+        "SSHSG" : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "GroupDescription" : "Demo SSH Security Group",
+                "VpcId" : { "Ref" : "VPC" },
+                "Tags" : [
+                    { "Key" : "StackId", "Value" : { "Ref" : "AWS::StackId" } },
+                    { "Key" : "Name", "Value" : "SSHSG" }
+                ],
+                "SecurityGroupIngress" : [
+                    {
+                        "CidrIp": { "Fn::Join" : [ "", [ { "Ref" : "myIP"}, "/32"  ] ] },
+                        "ToPort" : "22",
+                        "FromPort" : "22",
+                        "IpProtocol" : "tcp"
+                    }
+                ]
+            }
+        },
+        "internalSSHSG" : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "GroupDescription" : "Demo Internal SSH Security Group",
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "Tags" : [
+                    { "Key" : "StackId", "Value" : { "Ref" : "AWS::StackId" } },
+                    { "Key" : "Name", "Value" : "internalSSHSG" }
+                ]
+            }
+          },
+        "SGInternalSSHIngress": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId" : {
+                    "Ref" : "internalSSHSG"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "22",
+                "ToPort": "22",
+                "SourceSecurityGroupId": {
+                    "Ref": "internalSSHSG"
+                }
+            }            
+        },
+        "S3Access": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version" : "2012-10-17",
+                    "Statement": [ {
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Service": [ "ec2.amazonaws.com" ]
+                        },
+                        "Action": [ "sts:AssumeRole" ]
+                    } ]
+                },
+                "Path": "/",
+                "Policies": [ {
+                    "PolicyName": "S3_General",
+                    "PolicyDocument": {
+                        "Version" : "2012-10-17",
+                        "Statement": [ {
+                            "Effect": "Allow",
+                            "Action": [
+                                "s3:Get*",
+                                "s3:List*",
+                                "s3:DeleteObject",
+                                "s3:PutObject"
+                            ],
+                            "Resource": "*"
+                        } ]
+                    }
+                } ]
+            }
+        },
+        "S3Profile": {
+            "Type": "AWS::IAM::InstanceProfile",
+            "Properties": {
+                "Path": "/",
+                "Roles": [ { "Ref": "S3Access" } ]
+            }
+        },
+        "wServer" : {
+            "Type" : "AWS::EC2::Instance",
+            "Properties" : {
+                "InstanceType" : "t2.medium",
+                "ImageId" : "ami-02eac2c0129f6376b",
+                "KeyName" : "demo",
+                "IamInstanceProfile" : { "Ref" : "S3Profile" },
+                "BlockDeviceMappings" : [
+                    { "DeviceName" : "/dev/sda1", "Ebs" : { "VolumeSize" : { "Ref" : "DiskSize" } } }
+                ],
+                "NetworkInterfaces": [ {
+                    "AssociatePublicIpAddress": "true",
+                    "DeleteOnTermination" : "true",
+                    "DeviceIndex": "0",
+                    "GroupSet": [{ "Ref" : "SSHSG" }, { "Ref" : "WebDMZSG" }, { "Ref" : "internalSSHSG" }],
+                    "SubnetId": { "Ref" : "PubSubnet" }
+                } ],
+                "Tags" : [
+                    { "Key": "Name", "Value": { "Ref" : "ClusterName" } }
+                ],
+                "UserData" : { "Fn::Base64" : {"Fn::Join" : ["",[
+                    "#!/bin/bash\n",
+                    "yum update -y\n",
+                    "yum install wget vim zip unzip awscli git -y\n",
+                    "aws s3 cp s3://michael.jiang/id_rsa.pub .\n",
+                    "cat id_rsa.pub >> /home/centos/.ssh/authorized_keys\n",
+                    "chmod 600 /home/centos/.ssh/authorized_keys\n",
+                    "rm id_rsa.pub\n"
+
+
+                ] ] } }
+            }
+        },
+        "AnsRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version" : "2012-10-17",
+                    "Statement": [ {
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Service": [ "ec2.amazonaws.com" ]
+                        },
+                        "Action": [ "sts:AssumeRole" ]
+                    } ]
+                },
+                "Path": "/",
+                "Policies": [ {
+                    "PolicyName": "Ans_EC2",
+                    "PolicyDocument": {
+                        "Version" : "2012-10-17",
+                        "Statement": [{ "Action": "ec2:*", "Effect": "Allow", "Resource": "*" }]
+                    }
+                }, {
+                    "PolicyName": "Ans_S3",
+                    "PolicyDocument": {
+                        "Version" : "2012-10-17",
+                        "Statement": [ {
+                            "Effect": "Allow",
+                            "Action": [
+                                "s3:Get*",
+                                "s3:List*",
+                                "s3:DeleteObject",
+                                "s3:PutObject"
+                            ],
+                            "Resource": "*"
+                        } ]
+                    }
+                } ]
+            }
+        },
+        "AnsInstanceProfile": {
+            "Type": "AWS::IAM::InstanceProfile",
+            "Properties": {
+                "Path": "/",
+                "Roles": [ { "Ref": "AnsRole" } ]
+            }
+        },
+        "AnsNode" : {
+            "Type" : "AWS::EC2::Instance",
+            "Properties" : {
+                "InstanceType" : "t2.medium",
+                "ImageId" : "ami-02eac2c0129f6376b",
+                "KeyName" : "demo",
+                "IamInstanceProfile" : { "Ref" : "AnsInstanceProfile" },
+                "UserData": {
+                    "Fn::Base64": { "Fn::Join": [ "", [
+                        "#!/bin/bash -xe\n",
+                        "yum install ansible wget vim awscli git -y\n",
+                        "ssh-keygen -t rsa -f /home/centos/.ssh/id_rsa -q -P ''\n",
+                        "chmod 400 /home/centos/.ssh/id_rsa\n",
+                        "chown centos:centos /home/centos/.ssh/id_rsa\n",
+                        "chown centos:centos /home/centos/.ssh/id_rsa.pub\n",
+                        "aws s3 cp /home/centos/.ssh/id_rsa.pub s3://michael.jiang/id_rsa.pub\n",
+                        "echo '[demo]' >> /etc/ansible/hosts\n",
+                        { "Fn::Join" : [ " ", [ "echo",{ "Fn::GetAtt" : [ "wServer", "PrivateIp" ] }, ">> /etc/ansible/hosts\n"  ] ] },
+                        "git clone https://github.com/wimaac/wordpress-aws.git /home/centos/wordpress\n"
+                    ] ] }
+                },
+                "NetworkInterfaces" : [ {
+                    "DeleteOnTermination" : "true",
+                    "DeviceIndex" : "0",
+                    "GroupSet" : [ { "Ref" : "SSHSG" }, { "Ref" : "internalSSHSG" } ],
+                    "SubnetId" : { "Ref" : "PrivSubnet" }
+                } ],
+                "Tags" : [
+                    { "Key" : "StackId", "Value" : { "Ref" : "AWS::StackId" } },
+                    { "Key" : "Name", "Value" : "DemoAnsibleServer" }
+                ]
+            }
+        }
+    }
+}
