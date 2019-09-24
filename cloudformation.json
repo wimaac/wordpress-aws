@@ -259,7 +259,7 @@
                     { "Key" : "Name", "Value" : "internalSSHSG" }
                 ]
             }
-          },
+        },
         "SGInternalSSHIngress": {
             "Type": "AWS::EC2::SecurityGroupIngress",
             "Properties": {
@@ -409,7 +409,10 @@
                         "aws s3 cp /home/centos/.ssh/id_rsa.pub s3://michael.jiang/id_rsa.pub\n",
                         "echo '[demo]' >> /etc/ansible/hosts\n",
                         { "Fn::Join" : [ " ", [ "echo",{ "Fn::GetAtt" : [ "wServer", "PrivateIp" ] }, ">> /etc/ansible/hosts\n"  ] ] },
-                        "git clone https://github.com/wimaac/wordpress-aws.git /home/centos/wordpress\n"
+                        "git clone https://github.com/wimaac/wordpress-aws.git /home/centos/wordpress\n",
+                        "yum update -y\n",
+                        "cd /home/centos/wordpress\n",
+                        "ansible-playbook /home/centos/wordpress/setup.yaml\n"
                     ] ] }
                 },
                 "NetworkInterfaces" : [ {
