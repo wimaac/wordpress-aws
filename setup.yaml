@@ -1,6 +1,6 @@
 ---
 - name: Transfer and execute a script.
-  hosts: test
+  hosts: demo
   user: centos
   sudo: yes
   tasks:
